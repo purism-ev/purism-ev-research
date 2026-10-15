@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>電池能用多久？電池壽命預測論文入門導讀</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EDF0EB; --surface:#F8FAF6; --ink:#16202A; --muted:#55616B; --rule:#C7CFC9;
+  --charge:#0D7A69; --charge-soft:rgba(13,122,105,.12); --warn:#A86A12; --eol:#B0364A;
+  --band:rgba(168,106,18,.13); --future:#8C979F; --code:#E3E8E2;
+  --display:"LXGW WenKai TC","Kaiti TC","BiauKai","DFKai-SB","STKaiti",serif;
+  --body:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Heiti TC",system-ui,sans-serif;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0F161C; --surface:#16212A; --ink:#E2E8E3; --muted:#9AA7AF; --rule:#2A3843;
+    --charge:#3FC3AC; --charge-soft:rgba(63,195,172,.14); --warn:#E1A84A; --eol:#EE7385;
+    --band:rgba(225,168,74,.14); --future:#6F7C85; --code:#1D2A34; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0F161C; --surface:#16212A; --ink:#E2E8E3; --muted:#9AA7AF; --rule:#2A3843;
+  --charge:#3FC3AC; --charge-soft:rgba(63,195,172,.14); --warn:#E1A84A; --eol:#EE7385;
+  --band:rgba(225,168,74,.14); --future:#6F7C85; --code:#1D2A34; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.85;font-feature-settings:"tnum" 1}
+img,svg{max-width:100%}
+a{color:var(--charge);text-underline-offset:3px}
+a:focus-visible,button:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid var(--charge);outline-offset:3px;border-radius:4px}
+h1,h2,h3{font-family:var(--display);font-weight:700;line-height:1.3;letter-spacing:.01em}
+p{margin:0 0 1em}
+strong{font-weight:700}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+
+/* hero */
+.hero{padding:48px 0 40px;border-bottom:1px solid var(--rule)}
+.hero-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:40px;align-items:center}
+.hero h1{font-size:clamp(40px,7vw,76px);margin:0 0 .25em;letter-spacing:.02em}
+.hero .lede{font-size:19px;color:var(--muted);max-width:30em}
+.hero .lede b{color:var(--ink);font-weight:500}
+.hero .meta{font-size:14px;color:var(--muted);margin-top:18px}
+.chart-card{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:18px 18px 14px}
+.chart-card svg{display:block;width:100%;height:auto}
+.controls{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center;margin-top:10px;font-size:15px}
+.controls label{display:flex;align-items:center;gap:10px;flex:1 1 260px}
+.controls input[type=range]{flex:1;accent-color:var(--charge)}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:999px;overflow:hidden}
+.seg button{font:inherit;font-size:14px;border:0;background:transparent;color:var(--ink);padding:4px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--eol);color:var(--surface)}
+.readout{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 0;padding:0}
+.readout div{border-top:2px solid var(--rule);padding-top:6px}
+.readout dt{font-size:13px;color:var(--muted)}
+.readout dd{margin:0;font-size:22px;font-weight:700}
+.readout .r-eol dd{color:var(--eol)}
+.readout .r-now dd{color:var(--charge)}
+.chart-note{font-size:14px;color:var(--muted);margin:10px 0 0}
+
+/* layout */
+.layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:48px;padding-top:40px}
+.toc{position:sticky;top:calc(env(safe-area-inset-top,0px) + 20px);align-self:start;font-size:14px;line-height:1.6}
+.toc ol{list-style:none;margin:0;padding:0;border-left:1px solid var(--rule)}
+.toc a{display:block;padding:5px 0 5px 14px;color:var(--muted);text-decoration:none;margin-left:-1px;border-left:2px solid transparent}
+.toc a:hover,.toc a.on{color:var(--ink);border-left-color:var(--charge)}
+.toc .num{display:inline-block;width:1.6em;color:var(--charge)}
+.mobile-toc{display:none}
+main{max-width:46em;min-width:0}
+section.chap{padding:8px 0 40px;border-bottom:1px solid var(--rule);margin-bottom:36px}
+section.chap:last-of-type{border-bottom:0}
+.chap>h2{font-size:clamp(28px,4vw,38px);margin:0 0 .6em;display:flex;gap:.5em;align-items:baseline}
+.chap>h2 .n{color:var(--charge);font-size:.8em;min-width:1.2em}
+.chap h3{font-size:24px;margin:1.8em 0 .5em}
+.intro{font-size:18px}
+.kicker{font-size:15px;color:var(--muted)}
+
+/* concept list */
+.concepts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;background:var(--rule);border:1px solid var(--rule);border-radius:12px;overflow:hidden;margin:1em 0 1.5em}
+.concept{background:var(--surface);padding:16px 18px}
+.concept h4{margin:0 0 4px;font-size:17px;font-weight:700}
+.concept h4 small{font-weight:400;color:var(--muted);font-size:13px;margin-left:.4em}
+.concept p{margin:0;font-size:15.5px;line-height:1.75}
+.analogy{border-left:3px solid var(--warn);padding:4px 0 4px 16px;margin:1.2em 0;color:var(--ink)}
+.analogy b{color:var(--warn);font-weight:700}
+.callout{background:var(--charge-soft);border-radius:12px;padding:16px 20px;margin:1.4em 0}
+.callout p:last-child{margin:0}
+.callout.warnbox{background:var(--band)}
+
+/* steps figure */
+.flow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:1.2em 0}
+.flow div{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:14px 16px;font-size:15px;line-height:1.7}
+.flow b{display:block;font-family:var(--display);font-size:19px;margin-bottom:2px}
+
+/* tasks */
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin:1em 0 .8em}
+.tabs button{font:inherit;font-size:15px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);padding:8px 14px;border-radius:10px;cursor:pointer;text-align:left;line-height:1.35}
+.tabs button b{font-family:var(--display);font-size:18px;margin-right:6px}
+.tabs button[aria-selected="true"]{border-color:var(--charge);background:var(--charge-soft)}
+.task-panel{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:16px 18px}
+.task-q{font-family:var(--display);font-size:22px;margin:4px 0 10px}
+.spec{display:grid;grid-template-columns:5.5em 1fr;gap:6px 14px;font-size:15.5px;margin:12px 0 0}
+.spec dt{color:var(--muted)}
+.spec dd{margin:0}
+
+/* tables */
+.tbl-wrap{overflow-x:auto;margin:1em 0 1.4em;border:1px solid var(--rule);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:15px;line-height:1.6}
+th,td{padding:9px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}
+th{font-weight:700;color:var(--muted);font-size:13.5px;background:var(--code)}
+tr:last-child td{border-bottom:0}
+td.num{white-space:nowrap;font-weight:700}
+
+/* metric cards */
+.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:1em 0}
+.metric{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:14px 16px;font-size:15px;line-height:1.7}
+.metric h4{margin:0 0 4px;font-size:17px}
+.metric .eg{color:var(--warn);margin:6px 0 0}
+.metric.trap{border-color:var(--eol);border-width:2px}
+.metric.trap h4{color:var(--eol)}
+
+/* map */
+.map{display:grid;grid-template-columns:7em repeat(5,minmax(7em,1fr));font-size:14px;line-height:1.5;min-width:700px}
+.map>div{padding:8px 10px;border-bottom:1px solid var(--rule);border-right:1px solid var(--rule)}
+.map>div:nth-child(6n){border-right:0}
+.map .h{background:var(--code);font-weight:700;color:var(--muted)}
+.map .rowh{font-weight:700}
+.map .p{display:inline-block;background:var(--charge-soft);border-radius:6px;padding:1px 7px;margin:2px 3px 2px 0}
+
+.lines{list-style:none;padding:0;margin:1em 0}
+.lines li{padding:14px 0;border-bottom:1px solid var(--rule)}
+.lines li:last-child{border-bottom:0}
+.lines h4{margin:0 0 6px;font-size:17px}
+.chain{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0}
+.chain span.c{background:var(--surface);border:1px solid var(--rule);border-radius:999px;padding:2px 12px;font-size:14px}
+.chain span.ar{color:var(--warn)}
+.lines p{margin:0;font-size:15px;color:var(--muted)}
+
+/* stages and papers */
+.filter{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:1em 0 1.4em;font-size:14px}
+.filter span{color:var(--muted);margin-right:4px}
+.filter button{font:inherit;font-size:14px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);padding:4px 12px;border-radius:999px;cursor:pointer}
+.filter button[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.stage{margin:0 0 2.2em}
+.stage-head{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;align-items:baseline;margin-bottom:12px}
+.stage-head .sn{font-family:var(--display);font-size:44px;line-height:1;color:var(--charge);grid-row:span 2}
+.stage-head h3{margin:0;font-size:24px}
+.stage-head p{margin:0;font-size:15px;color:var(--muted)}
+.paper{background:var(--surface);border:1px solid var(--rule);border-radius:14px;margin:0 0 12px;overflow:hidden}
+.paper.hide{display:none}
+.paper summary{list-style:none;cursor:pointer;padding:16px 50px 16px 18px;position:relative}
+.paper summary::-webkit-details-marker{display:none}
+.paper summary::after{content:"";position:absolute;right:20px;top:24px;width:10px;height:10px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .2s}
+.paper details[open] summary::after{transform:rotate(-135deg);top:28px}
+.p-name{font-family:var(--display);font-size:23px;font-weight:700;line-height:1.3}
+.p-meta{font-size:13.5px;color:var(--muted);margin:2px 0 6px;line-height:1.5}
+.p-plain{margin:0;font-size:16px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tag{font-size:12.5px;border-radius:6px;padding:1px 8px;border:1px solid var(--rule);color:var(--muted)}
+.tag.t{border-color:var(--charge);color:var(--charge)}
+.tag.ck-full{background:var(--charge-soft);border-color:transparent;color:var(--charge)}
+.tag.ck-none{border-color:var(--eol);color:var(--eol)}
+.p-body{padding:0 18px 18px;border-top:1px solid var(--rule)}
+.p-body h5{font-size:15px;color:var(--muted);margin:16px 0 4px;font-weight:700}
+.p-body p{font-size:15.5px;line-height:1.8;margin:0}
+.nums{display:grid;gap:8px;margin-top:6px}
+.nums div{display:grid;grid-template-columns:minmax(7.5em,auto) 1fr;gap:2px 14px;padding:8px 0;border-bottom:1px dashed var(--rule);font-size:15px;line-height:1.65}
+.nums div:last-child{border-bottom:0}
+.nums b{color:var(--charge);font-size:16px}
+.nums .read{grid-column:2;color:var(--muted)}
+.p-body .care{background:var(--band);border-radius:10px;padding:10px 14px;margin-top:14px;font-size:15px}
+.p-body .src{font-size:14px;margin-top:12px;color:var(--muted)}
+
+.limits{counter-reset:lim;list-style:none;padding:0;margin:1em 0;display:grid;gap:10px}
+.limits li{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:12px 16px;font-size:15.5px}
+.limits li b{display:block}
+.lvl{font-size:12.5px;border-radius:6px;padding:0 7px;margin-left:6px;vertical-align:2px;font-weight:500}
+.lvl.s{background:var(--charge-soft);color:var(--charge)}
+.lvl.m{background:var(--band);color:var(--warn)}
+.lvl.w{border:1px solid var(--rule);color:var(--muted)}
+ol.read{padding-left:1.4em}
+ol.read li{margin:.5em 0}
+.gloss{display:grid;grid-template-columns:8em 1fr;gap:4px 16px;font-size:15.5px}
+.gloss dt{font-weight:700}
+.gloss dd{margin:0 0 8px;color:var(--ink)}
+.fixes li{margin:.4em 0;font-size:15.5px}
+footer{padding:30px 0 50px;color:var(--muted);font-size:14px;border-top:1px solid var(--rule);margin-top:20px}
+
+@media (max-width:960px){
+  .hero-grid{grid-template-columns:1fr;gap:24px}
+  .layout{grid-template-columns:1fr;gap:0;padding-top:24px}
+  .toc{display:none}
+  .mobile-toc{display:block;background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:10px 16px;margin-bottom:28px;font-size:15px}
+  .mobile-toc summary{cursor:pointer;font-weight:700}
+  .mobile-toc ol{margin:8px 0 4px;padding-left:1.4em}
+}
+@media (max-width:620px){
+  body{font-size:16px}
+  .concepts,.metrics,.flow{grid-template-columns:1fr}
+  .readout dd{font-size:18px}
+  .nums div{grid-template-columns:1fr}
+  .nums .read{grid-column:1}
+  .gloss{grid-template-columns:1fr}
+  .gloss dd{margin-bottom:12px}
+  .spec{grid-template-columns:1fr}
+  .spec dt{margin-top:6px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <h1>電池能用多久？</h1>
+      <p class="lede">新電池剛做好時，看起來每一顆都一樣健康。<b>只測前 100 圈，能不能猜出它總共能用幾圈？</b>這頁從電池入門講起，再帶你讀懂 2019 到 2026 年這個問題的 19 篇主要論文。</p>
+      <p class="meta">文獻導讀 · 2026 年 10 月 · 不需要電池背景</p>
+    </div>
+    <div class="chart-card" aria-label="互動圖：一顆電池的健康度曲線">
+      <svg id="heroChart" viewBox="0 0 640 340" role="img" aria-label="電池健康度隨充放電圈數下降的示意曲線"></svg>
+      <div class="controls">
+        <label for="nowSlider">你現在站在第 <b id="nowLbl">100</b> 圈
+          <input id="nowSlider" type="range" min="0" max="1200" step="10" value="100">
+        </label>
+        <span>壽終線 <span class="seg" id="eolSeg" role="group" aria-label="壽終閾值">
+          <button type="button" data-v="0.9" aria-pressed="false">90%</button><button type="button" data-v="0.8" aria-pressed="true">80%</button><button type="button" data-v="0.7" aria-pressed="false">70%</button>
+        </span></span>
+      </div>
+      <dl class="readout">
+        <div class="r-now"><dt>現在的健康度</dt><dd id="rSoh">99.8%</dd></div>
+        <div class="r-eol"><dt>這顆電池的壽命</dt><dd id="rLife">第 950 圈</dd></div>
+        <div><dt>還剩幾圈</dt><dd id="rRul">850 圈</dd></div>
+      </dl>
+      <p class="chart-note">實線是你已經量到的；虛線是未來，也就是模型要猜的部分。拖到第 100 圈看看：曲線幾乎還是平的，這正是難的地方。曲線是示意，不是真實資料。</p>
+    </div>
+  </div>
+</header>
+
+<div class="wrap layout">
+  <nav class="toc" aria-label="目錄">
+    <ol id="tocList">
+      <li><a href="#c0"><span class="num">0</span>電池入門</a></li>
+      <li><a href="#c1"><span class="num">1</span>機器學習在這裡做什麼</a></li>
+      <li><a href="#c2"><span class="num">2</span>四種問法</a></li>
+      <li><a href="#c3"><span class="num">3</span>讀數字之前</a></li>
+      <li><a href="#c4"><span class="num">4</span>研究地圖</a></li>
+      <li><a href="#c5"><span class="num">5</span>逐篇導讀</a></li>
+      <li><a href="#c6"><span class="num">6</span>論文之間的關係</a></li>
+      <li><a href="#c7"><span class="num">7</span>現況與極限</a></li>
+      <li><a href="#c8"><span class="num">8</span>怎麼開始讀</a></li>
+      <li><a href="#c9"><span class="num">9</span>名詞表與來源</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <details class="mobile-toc">
+      <summary>目錄</summary>
+      <ol>
+        <li><a href="#c0">電池入門</a></li><li><a href="#c1">機器學習在這裡做什麼</a></li><li><a href="#c2">四種問法</a></li><li><a href="#c3">讀數字之前</a></li><li><a href="#c4">研究地圖</a></li><li><a href="#c5">逐篇導讀</a></li><li><a href="#c6">論文之間的關係</a></li><li><a href="#c7">現況與極限</a></li><li><a href="#c8">怎麼開始讀</a></li><li><a href="#c9">名詞表與來源</a></li>
+      </ol>
+    </details>
+
+    <!-- 0 -->
+    <section class="chap" id="c0">
+      <h2><span class="n">0</span>五分鐘電池入門</h2>
+      <p class="intro">讀這些論文前，只需要懂幾個概念。我們用一個比喻貫穿全頁：<b>電池像一個水瓶，充電是裝水，放電是倒水。</b></p>
+
+      <div class="concepts">
+        <div class="concept"><h4>容量<small>Ah，安培小時</small></h4><p>瓶子能裝多少水。1 Ah 代表能用 1 安培的電流放電 1 小時。論文常用的 18650 小圓柱電池約 1 到 3.5 Ah；電動車用的大電芯常在 50 Ah 以上。</p></div>
+        <div class="concept"><h4>圈<small>cycle</small></h4><p>充一次電加放一次電，算一圈。手機每天充一次，一年大約 300 多圈。</p></div>
+        <div class="concept"><h4>健康度<small>SOH</small></h4><p>現在能裝的水 ÷ 新瓶子能裝的水。新電池約 100%，用久了慢慢往下掉。</p></div>
+        <div class="concept"><h4>壽終<small>EOL</small></h4><p>健康度跌到某條線的那一圈，多數論文用 80%。這不代表電池壞了，而是不適合電動車這類要求高的用途。這一圈的圈數，就是「壽命」。</p></div>
+        <div class="concept"><h4>剩餘壽命<small>RUL</small></h4><p>從現在到壽終還剩幾圈。上方互動圖的第三個數字就是它。</p></div>
+        <div class="concept"><h4>充放電倍率<small>C-rate</small></h4><p>倒水的速度。1C 大約 1 小時放完，2C 約 30 分鐘，C/5 約 5 小時。快充就是高倍率充電，通常比較傷電池。</p></div>
+        <div class="concept"><h4>放電深度<small>DoD</small></h4><p>每次倒掉多少水。100% 是倒光，10% 是只倒一點就再裝滿。</p></div>
+        <div class="concept"><h4>化學系統</h4><p>瓶子的材質。LFP（磷酸鐵鋰）、NMC（鎳錳鈷）、NCA、LCO 是常見的鋰電池正極；另有鈉離子、鋅離子電池。不同材質老化方式很不一樣。</p></div>
+      </div>
+
+      <h3>電池為什麼會老？</h3>
+      <p>充放電時，鋰離子在正極和負極之間來回搬家。每搬一次，總有一點點鋰被「卡住」回不來，例如變成負極表面一層保護膜（SEI）的一部分；電極材料也會因為反覆膨脹收縮而慢慢裂開、失去作用。能搬家的鋰越來越少，瓶子就越裝越少。</p>
+      <p>老化速度和溫度、充電速度、每次用多深都有關。更麻煩的是曲線形狀：<b>前期幾乎是平的，到某個時刻（叫「膝點」）突然加速往下掉。</b>這就是為什麼前 100 圈很難看出端倪。</p>
+
+      <h3>為什麼大家想「預測」？</h3>
+      <p>因為測試太慢。一圈常要 1 到 3 小時，測到 1,000 圈就是好幾個月，而且一個新設計要測很多顆才算數。電池廠評估新配方、驗證新產線、研發新的快充方式時，大部分時間都在等。如果能在前 100 圈就知道答案，研發週期可以從一年縮到幾週。</p>
+
+      <div class="analogy"><b>比喻</b>　想像兩位跑者跑馬拉松，前 100 公尺的速度一模一樣。誰會先累？光看速度看不出來，但跑步姿勢的細微差別，可能早就透露了答案。這個領域的研究，就是在找電池的「跑步姿勢」。</div>
+    </section>
+
+    <!-- 1 -->
+    <section class="chap" id="c1">
+      <h2><span class="n">1</span>機器學習在這裡做什麼</h2>
+      <p class="intro">這些論文大多用「監督式學習」：給模型看很多已經知道答案的例子，讓它學會從早期資料猜出答案。</p>
+      <div class="flow">
+        <div><b>輸入</b>前幾圈量到的資料：電壓、電流、容量、溫度隨時間的變化，有時還加上材料、充電方式的描述。</div>
+        <div><b>模型</b>從簡單的線性公式，到神經網路、Transformer、大型預訓練模型。</div>
+        <div><b>輸出</b>依問法不同：一個壽命數字、一整條未來曲線，或現在的健康度。</div>
+      </div>
+      <h3>這個領域的根本矛盾</h3>
+      <p>要訓練模型，每顆電池都要提供一個「正確答案」，也就是它真正的壽命。<b>但要知道一顆電池的壽命，就得把它測到壽終。</b>所以整個領域在做一件有點弔詭的事：為了以後不必長時間測試，先做大量長時間測試。</p>
+      <p>這帶來兩個後果，貫穿後面每一篇論文：</p>
+      <div class="callout">
+        <p><b>標籤又貴又少。</b>一顆電池只貢獻一個壽命答案，公開資料集常常只有幾十到幾百顆。</p>
+        <p><b>泛化是核心問題。</b>模型在 A 廠的磷酸鐵鋰電池上學得很好，換成 B 廠的鎳系電池、換個溫度、換種用法，還靈不靈？2019 年到現在的研究，很大一部分都在回答這個問題。</p>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section class="chap" id="c2">
+      <h2><span class="n">2</span>同一條曲線，四種問法</h2>
+      <p class="intro">「預測電池壽命」其實是四個不同的問題。差別在於你站在電池一生的哪一點、想知道什麼。點選下方看看每種問法在曲線上長什麼樣子。</p>
+      <div class="tabs" role="tablist" id="taskTabs">
+        <button role="tab" aria-selected="true" data-t="A"><b>A</b>早期壽命</button>
+        <button role="tab" aria-selected="false" data-t="B"><b>B</b>早期軌跡</button>
+        <button role="tab" aria-selected="false" data-t="C"><b>C</b>歷史外推</button>
+        <button role="tab" aria-selected="false" data-t="D"><b>D</b>現況健康度</button>
+      </div>
+      <div class="task-panel" role="tabpanel">
+        <svg id="taskChart" viewBox="0 0 640 300" role="img" aria-label="四種任務在健康度曲線上的位置"></svg>
+        <p class="task-q" id="taskQ"></p>
+        <p id="taskWhy" style="font-size:15.5px;margin:0"></p>
+        <dl class="spec" id="taskSpec"></dl>
+      </div>
+      <div class="callout warnbox">
+        <p><b>一句話記住：</b>A、B 是「猜一顆沒看過壽命的新電池」，最難；C 是「延長自己已經畫了一半的線」；D 是「只看現在」。圖中三條灰線在前 100 圈幾乎重疊，後來卻走向完全不同的結局，這就是 A、B 困難的原因。</p>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section class="chap" id="c3">
+      <h2><span class="n">3</span>讀數字之前：六種說法與四個陷阱</h2>
+      <p class="intro">論文常寫「我們的誤差只有 X%，是最好的」。但不同論文的 X% 量的東西常常不一樣。先學會讀數字，後面才不會被誤導。</p>
+      <div class="metrics">
+        <div class="metric"><h4>MAPE 平均絕對百分比誤差</h4>每筆預測差了真實值的百分之幾，再取平均。<p class="eg">例：真實 1,000 圈、猜 850 圈 → 誤差 15%</p></div>
+        <div class="metric"><h4>RMSE 均方根誤差</h4>單位和預測值一樣（例如「圈」），大錯會被放大。<p class="eg">例：RMSE 91 圈 ≈ 典型偏差約 90 圈</p></div>
+        <div class="metric"><h4>MAE 平均絕對誤差</h4>直接平均差了多少，單位是圈或 Ah。<p class="eg">例：MAE 105 圈 = 平均差 105 圈</p></div>
+        <div class="metric"><h4>相對改善「好 X%」</h4>（對照誤差 − 新方法誤差）÷ 對照誤差。<p class="eg">例：對照 20%、新方法 15% → 「好 25%」，不是好 5 個百分點</p></div>
+        <div class="metric"><h4>15%-Acc</h4>誤差在 15% 以內的預測占多少比例，BatteryLife 把這種預測視為「可用」。<p class="eg">例：0.62 = 62% 的預測誤差在 15% 內</p></div>
+        <div class="metric trap"><h4>陷阱：健康度的 MAPE</h4>健康度本來就在 0.8 到 1.0 之間，誤差百分比天生很小。<p class="eg">例：真實 0.85、猜 0.83 → 只有 2.4%，絕不能拿去和壽命誤差比</p></div>
+      </div>
+      <h3>四個讓數字無法互比的設定</h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>設定</th><th>各篇怎麼做</th><th>為什麼重要</th></tr></thead>
+        <tbody>
+          <tr><td><b>健康度的分母</b></td><td>標示容量（BatteryLife、PBT、Attia），或電池自己第一圈的容量（Sours+、BatteryGPT、Discovery Learning）</td><td>分母不同，同一顆電池的健康度就不同</td></tr>
+          <tr><td><b>壽終線</b></td><td>多數 80%；CALB 工業電芯與 Discovery Learning 用 90%；Karma 約 70%</td><td>線越高，壽命越短、越快拿到答案，預測也越容易</td></tr>
+          <tr><td><b>怎麼切考題</b></td><td>隨機切分：測試電池常和訓練電池條件相同，像「考課本原題」，數字偏好看。留一組切分：例如兩個廠牌訓練、第三個廠牌測試，像「考沒教過的題」，數字較差但較接近實際</td><td>同一個模型，換切法數字可以差好幾倍</td></tr>
+          <tr><td><b>預測的單位</b></td><td>多數是圈數；Li+ 用週；Discovery Learning 預測一群電池的平均壽命，不是單顆</td><td>預測平均比預測單顆容易</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- 4 -->
+    <section class="chap" id="c4">
+      <h2><span class="n">4</span>研究地圖：七年、四個階段、五條路線</h2>
+      <p class="intro">先看全貌。橫軸是年份，縱軸是四種問法。任務 A 最擁擠，是這個領域的主問題。</p>
+      <div class="tbl-wrap"><div class="map">
+        <div class="h">任務</div><div class="h">2019–2021</div><div class="h">2023</div><div class="h">2024</div><div class="h">2025</div><div class="h">2026</div>
+        <div class="rowh">A 早期壽命</div><div><span class="p">Severson</span><span class="p">Attia 2020</span><span class="p">Attia 2021</span></div><div><span class="p">Li+</span><span class="p">BatLiNet</span></div><div><span class="p">Sours+</span></div><div><span class="p">Discovery Learning</span><span class="p">PBT</span><span class="p">BatteryLife</span></div><div>（PBT、Discovery Learning 正式刊出）</div>
+        <div class="rowh">B 早期軌跡</div><div>—</div><div><span class="p">Kim+</span></div><div><span class="p">Nicolae+</span></div><div><span class="p">BatteryGPT</span></div><div><span class="p">BatteryMFormer</span></div>
+        <div class="rowh">C 歷史外推</div><div>—</div><div>—</div><div>—</div><div><span class="p">Battery-Timer</span><span class="p">Karma</span></div><div>—</div>
+        <div class="rowh">D 現況</div><div>—</div><div>—</div><div>—</div><div>—</div><div><span class="p">Gong+</span><span class="p">Li+（Sci. Rep.）</span></div>
+        <div class="rowh">基準、綜述</div><div>—</div><div><span class="p">BatteryML</span></div><div>—</div><div><span class="p">BatteryLife</span></div><div><span class="p">大型模型綜述</span></div>
+      </div></div>
+      <p class="kicker">年份取 arXiv 或期刊中較早者。</p>
+
+      <h3>五條研究路線：誰接著誰做</h3>
+      <p>「任務」是要回答什麼問題；「路線」是一群論文用什麼想法去回答。路線分類是依作者名單和研究問題整理的，不是文獻公認的分類。</p>
+      <ul class="lines">
+        <li><h4>① 早期預測的開端</h4><div class="chain"><span class="c">Severson 2019</span><span class="ar">→</span><span class="c">Attia 2020</span><span class="ar">→</span><span class="c">Attia 2021</span></div><p>Stanford、MIT、豐田研究院的同一群人。提出問題 → 拿去做最佳化 → 證明簡單模型就夠強。他們的 124 顆電池後來被一大半論文沿用。</p></li>
+        <li><h4>② Microsoft 團隊</h4><div class="chain"><span class="c">BatteryML 2023</span><span class="ar">→</span><span class="c">BatLiNet 2023／2025</span></div><p>先把資料統一格式，再提出能跨條件的模型。</p></li>
+        <li><h4>③ 換一種量法</h4><div class="chain"><span class="c">Li+ 2023／2024</span><span class="c">Sours+ 2024</span></div><p>兩個獨立團隊都發現只看曲線不夠，一個加定期健檢，一個加內阻。</p></li>
+        <li><h4>④ Ruifeng Tan 團隊（香港科技大學廣州）</h4><div class="chain"><span class="c">BatteryLife 2025</span><span class="ar">→</span><span class="c">PBT 2025／2026</span><span class="ar">→</span><span class="c">BatteryMFormer 2026</span></div><p>同一位第一作者：先建考場，再訓練通用模型，再延伸到整條曲線。2025 年後的「最好成績」大多出自這裡，也都在自己的考場上比。</p></li>
+        <li><h4>⑤ 其他獨立方向</h4><div class="chain"><span class="c">Discovery Learning</span><span class="c">Karma</span><span class="c">Battery-Timer</span><span class="c">Gong+</span><span class="c">2026 綜述</span></div><p>物理零樣本、歷史外推、時間序列大模型、現況健康度、大型模型綜述。彼此沒有直接關係。</p></li>
+      </ul>
+    </section>
+
+    <!-- 5 -->
+    <section class="chap" id="c5">
+      <h2><span class="n">5</span>逐篇導讀</h2>
+      <p class="intro">每篇論文都整理成同一個格式：一句話白話、想解決什麼、怎麼做、數字怎麼讀、要小心什麼。點開卡片看細節。卡片右下方的「已讀」標籤，標示這次核對到原文的哪個程度。</p>
+      <div class="filter" id="filter"><span>只看</span>
+        <button type="button" data-f="all" aria-pressed="true">全部</button>
+        <button type="button" data-f="A" aria-pressed="false">任務 A</button>
+        <button type="button" data-f="B" aria-pressed="false">任務 B</button>
+        <button type="button" data-f="C" aria-pressed="false">任務 C</button>
+        <button type="button" data-f="D" aria-pressed="false">任務 D</button>
+        <button type="button" data-f="X" aria-pressed="false">基準與綜述</button>
+      </div>
+      <div id="stages"></div>
+    </section>
+
+    <!-- 6 -->
+    <section class="chap" id="c6">
+      <h2><span class="n">6</span>論文之間的關係</h2>
+      <h3>每個瓶頸，引出下一步</h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>瓶頸</th><th>論文自己怎麼說</th><th>後來的對策</th></tr></thead>
+        <tbody>
+          <tr><td><b>手工特徵換條件就失效</b></td><td>BatLiNet：為 LFP 設計的特徵難推廣。Li+：ΔQ(V) 解釋不了電池間差異。Sours+：曲線特徵跨廠牌失效</td><td>加內阻或定期健檢（Sours+、Li+）；學電池間的相對差異（BatLiNet）；直接吃原始資料（BatteryLife）</td></tr>
+          <tr><td><b>資料少、種類單一</b></td><td>BatteryLife：先前公開資料只有實驗室的小鋰電池</td><td>整合 16 個資料集，加入鋅、鈉電池與工業大電芯</td></tr>
+          <tr><td><b>遷移學習沒幫助</b></td><td>BatteryLife：微調與領域適應多數不如只用目標資料</td><td>預訓練加專門化，並把老化條件寫成文字當輸入（PBT、BatteryMFormer）</td></tr>
+          <tr><td><b>仍要新電池的壽命標籤</b></td><td>Discovery Learning：現有方法要試做、測完才可靠</td><td>物理模型當橋樑，零標籤推論，只需前 50 圈</td></tr>
+          <tr><td><b>早期健康度看不出差異</b></td><td>BatteryMFormer：早期健康度相同的電池，後來差很多</td><td>改看電壓、電流的細節曲線，加入老化條件</td></tr>
+        </tbody>
+      </table></div>
+      <h3>誰沿用、誰回應誰</h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>從</th><th>到</th><th>關係</th></tr></thead>
+        <tbody>
+          <tr><td>Severson</td><td>Attia 2021</td><td>Severson 是共同作者，延續同一問題</td></tr>
+          <tr><td>Severson</td><td>BatteryML</td><td>資料成為 MATR 資料集；三個線性模型成為基線</td></tr>
+          <tr><td>Severson</td><td>Kim+、Nicolae+、BatteryGPT、Li+（Sci. Rep.）、Battery-Timer</td><td>都用 Severson 的電池資料；Nicolae+ 還沿用原本切分直接比較</td></tr>
+          <tr><td>Severson</td><td>BatLiNet、Li+、Sours+</td><td>三篇都指出 ΔQ(V) 或曲線特徵難以推廣</td></tr>
+          <tr><td>BatteryML</td><td>BatLiNet</td><td>同一個 Microsoft 團隊</td></tr>
+          <tr><td>BatteryML</td><td>BatteryLife</td><td>BatteryLife 的資料照 BatteryML 的格式整理</td></tr>
+          <tr><td>BatteryLife</td><td>PBT、BatteryMFormer</td><td>同第一作者；沿用資料、切分與 CyclePatch 對照</td></tr>
+          <tr><td>BatLiNet</td><td>PBT</td><td>被列為對照方法</td></tr>
+          <tr><td>PBT</td><td>BatteryMFormer</td><td>都把 10 個老化因子的文字描述當輸入</td></tr>
+        </tbody>
+      </table></div>
+      <h3>各篇「最好成績」為什麼不能放在一起排名</h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>論文</th><th>自報數字</th><th>它量的東西和別人不同在哪</th></tr></thead>
+        <tbody>
+          <tr><td>Severson</td><td class="num">9.1%</td><td>單一型號、同一實驗室的 124 顆</td></tr>
+          <tr><td>BatLiNet</td><td class="num">10%</td><td>342 顆、5 種材料混合；組成與 BatteryLife 不同</td></tr>
+          <tr><td>Sours+</td><td class="num">150 圈</td><td>單位是圈不是百分比；留一廠牌</td></tr>
+          <tr><td>BatteryLife</td><td class="num">17.9%</td><td>13 個資料集混合；隨機切分；對所有樣本平均</td></tr>
+          <tr><td>PBT</td><td class="num">15.1%</td><td>先按老化條件平均再平均；算法與 BatteryLife 不同</td></tr>
+          <tr><td>Discovery Learning</td><td class="num">7.2%</td><td>群組平均壽命，不是單顆；壽終線 90%</td></tr>
+          <tr><td>BatteryMFormer</td><td class="num">1–5%</td><td>健康度點的誤差，不是壽命誤差</td></tr>
+          <tr><td>BatteryGPT</td><td class="num">1.18%</td><td>已經看了 30% 壽命；只測 4 顆</td></tr>
+          <tr><td>Karma</td><td class="num">降 50.6%</td><td>只有相對降幅；用了同一顆電池的前半段</td></tr>
+        </tbody>
+      </table></div>
+      <p class="kicker">沒有公認的排行榜。要比較方法，必須固定資料、切分、壽終定義與指標。</p>
+    </section>
+
+    <!-- 7 -->
+    <section class="chap" id="c7">
+      <h2><span class="n">7</span>2026 年的現況與極限</h2>
+      <p class="intro">括號標示證據強度：<span class="lvl s">強</span>是原文表格或多篇直接支持，<span class="lvl m">中</span>是作者自述或跨論文觀察，<span class="lvl w">弱</span>僅為本頁涵蓋範圍內的觀察。</p>
+      <ol class="limits">
+        <li><b>新型號電池仍需要同型號的標籤<span class="lvl s">強</span></b>BatteryLife 的遷移實驗、PBT 自述。完全不靠標籤的只有 Discovery Learning，且有前提。</li>
+        <li><b>資料越多樣，誤差越大<span class="lvl m">中</span></b>單一型號 9.1%，混合 13 個資料集就到 17.9%。</li>
+        <li><b>評估方式偏樂觀<span class="lvl m">中</span></b>多數用隨機切分；明確測外推的只有 Sours+、BatteryMFormer、Discovery Learning 等少數。</li>
+        <li><b>壽終與標籤定義不統一<span class="lvl s">強</span></b>70、80、90% 都有；還沒跌到壽終的電池，各篇處理方式也不同。</li>
+        <li><b>現場資料幾乎沒有被驗證<span class="lvl m">中到強</span></b>Li+、BatteryMFormer、綜述都承認，資料大多來自恆溫實驗室。</li>
+        <li><b>受輸入資訊量限制<span class="lvl m">中</span></b>只給 1 圈時誤差高；給到近 100 圈，簡單對照也會追上來。</li>
+        <li><b>都是單顆電芯，不是電池包<span class="lvl w">弱到中</span></b>車上的電池包由上百顆組成，還要完整充放電曲線，現場不一定有。</li>
+        <li><b>基礎模型不是萬靈丹<span class="lvl m">中到強</span></b>綜述的結論；PBT 也受預訓練涵蓋範圍限制。</li>
+        <li><b>物理零樣本有前提<span class="lvl s">強</span></b>需要物理模型、設計參數，以及部分原型測試。</li>
+      </ol>
+    </section>
+
+    <!-- 8 -->
+    <section class="chap" id="c8">
+      <h2><span class="n">8</span>如果要開始讀原文</h2>
+      <ol class="read">
+        <li><b>BatteryLife</b>：基準和跨域遷移表，最直接說明這個領域卡在哪。</li>
+        <li><b>PBT</b>：目前最完整的「預訓練加專門化」，看它怎麼把老化條件寫成文字。</li>
+        <li><b>BatteryMFormer</b>：整條軌跡預測，以及它對現場資料的坦白。</li>
+        <li><b>Discovery Learning</b>：唯一不靠新電池壽命標籤的路線，看它需要哪些前提。</li>
+        <li><b>BatLiNet、Li+、Sours+</b>：特徵與評估設計的好點子。</li>
+        <li><b>BatteryML 程式碼</b>：標籤與特徵的實作細節，可當自己資料處理的參考。</li>
+      </ol>
+      <p class="kicker">Severson 是背景知識，讀摘要即可；2026 綜述適合最後讀，用來看大型模型這條外圍路線。</p>
+    </section>
+
+    <!-- 9 -->
+    <section class="chap" id="c9">
+      <h2><span class="n">9</span>名詞表與來源</h2>
+      <h3>機器學習名詞白話版</h3>
+      <dl class="gloss">
+        <dt>特徵</dt><dd>從原始資料算出、餵給模型的數字。例如 ΔQ(V) 的變異數。</dd>
+        <dt>線性模型、elastic net</dt><dd>把特徵乘上權重再加總的簡單公式；elastic net 會自動壓低不重要的特徵。</dd>
+        <dt>過擬合</dt><dd>模型把訓練題背得滾瓜爛熟，換新題就不會。</dd>
+        <dt>Transformer、token</dt><dd>ChatGPT 背後的架構。它把輸入切成一個個單位（token）來看彼此的關係；電池論文常把「一圈」當一個 token。</dd>
+        <dt>預訓練、微調</dt><dd>先用大量通用資料學基本功，再用少量目標資料調整。</dd>
+        <dt>基礎模型</dt><dd>用大量多樣資料預訓練、可以套到很多下游任務的大模型。</dd>
+        <dt>遷移學習、領域適應</dt><dd>把在 A 資料學到的東西用在 B 資料上；領域適應是刻意把兩邊的資料分布拉近（例如 MMD）。</dd>
+        <dt>零樣本</dt><dd>目標資料完全沒有答案可學，也要直接預測。</dd>
+        <dt>知識蒸餾</dt><dd>讓小模型模仿大模型的輸出，把本事「教」給小模型。</dd>
+        <dt>混合專家（MoE）</dt><dd>模型裡有多個專家子網路，每次只叫用其中幾個。</dd>
+        <dt>貝氏最佳化</dt><dd>根據已做的實驗結果，聰明地決定下一個要試什麼。</dd>
+        <dt>交叉驗證</dt><dd>把資料輪流分成訓練和測試好幾次，取平均，避免只靠運氣。</dd>
+      </dl>
+
+      <h3>這次重讀原文後的修正與補充</h3>
+      <p>這頁以原本的簡報為底稿，再回頭核對各篇論文的摘要或全文。下列是和原簡報不同、或原簡報沒提到的地方：</p>
+      <ul class="fixes">
+        <li><b>Karma</b>：論文結論段寫明「平均降低比較方法的 MAE 50.6%、32.6%」，所以指標是 MAE。原簡報寫「指標不明」，應修正；但「對誰」仍是多個比較方法的平均。</li>
+        <li><b>BatteryLife 有多個版本</b>：arXiv v7 是 990 顆、59 種化學系統、9 種溫度；資料集公開頁面則寫約 998 顆、80 種化學系統。文中對 BatteryML 的計數也在 381 與 403 顆之間變動。</li>
+        <li><b>PBT 有多個版本</b>：arXiv 第一版摘要是「13 個資料集預訓練、平均好 19.8%」；正式版摘要是「15 個下游資料集、977 顆、532 種條件，平均好 24.8%，最多 73.9%」。</li>
+        <li><b>Attia 2020</b>：摘要描述的是「六步驟、十分鐘」快充；原簡報說的「0–80% 分四段」是其中可調電流的部分，兩者描述的是同一設計。</li>
+        <li><b>Battery-Timer</b>：論文自己承認，要求預測超過 96 步時後段結果不可信，作者稱之為基礎模型的「遺忘」；微調用的公開資料包含溫州 60 輛電動巴士的現場資料。</li>
+        <li><b>Sours+</b>：v1 摘要報的是跨廠牌 MAE 150 圈；v2 改寫標題與摘要，並加入電池測試公司 NOVONIX 的共同作者。</li>
+        <li><b>Discovery Learning（已讀全文）</b>：電池與資料來自 Farasis Energy；Interpreter 反推的是 14 個物理參數（11 個推論加 3 個衍生），再展開成 28 個特徵。「98% 時間」是在一組假設下算的，另一組同樣保守的假設只省約 88% 能源。</li>
+        <li><b>BatLiNet（已讀全文）</b>：原簡報的數字都對得上表 1。補充兩點：用磷酸鐵鋰資料預訓練再微調，對 LCO、NMC 反而變差；參考電池挑錯時，單顆誤差可差超過 1,500 圈。</li>
+      </ul>
+
+      <h3>來源與核對程度</h3>
+      <p class="kicker">「全文」是讀了正文與表格；「摘要」是讀了摘要或結論段，表格細節沿用原簡報（文中標「依原簡報」）；「未取得」是這次找不到可讀的版本。所有數字皆為論文自報，沒有重現實驗。</p>
+      <div class="tbl-wrap"><table id="srcTable">
+        <thead><tr><th>論文</th><th>核對程度</th><th>連結</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <p class="kicker">BatteryGPT 與 Gong+ 的 ResearchGate 頁面這次被網站擋下（429），仍維持原狀。原簡報另列出 Azevedo+、Shang+（僅摘要）以及 Qi+、Wang+、Chen+（無法取得），本頁未單獨介紹。</p>
+    </section>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">電池壽命預測論文入門導讀 · 2026 年 10 月整理。曲線圖為示意，數字皆為各論文自報；「推算」為依論文表格反推，「依原簡報」為沿用原簡報整理、這次未能在原文中逐項核對的內容。</div>
+</footer>
+
+<script>
+(function(){
+  /* ---------- curve model (示意) ---------- */
+  function sohCurve(n, L){ L = L || 1050;
+    return 1.0 + 0.002*(1-Math.exp(-n/25)) - 0.00004*n - 0.30*Math.pow(n/L,6); }
+  function lifeAt(th, L){ for(var n=0;n<4000;n++){ if(sohCurve(n,L)<=th) return n; } return null; }
+  var NS='http://www.w3.org/2000/svg';
+  function el(tag, attrs, parent){ var e=document.createElementNS(NS,tag); for(var k in attrs) e.setAttribute(k,attrs[k]); if(parent) parent.appendChild(e); return e; }
+  function txt(parent, x, y, s, attrs){ var t=el('text', Object.assign({x:x,y:y,'font-size':13,fill:'var(--muted)','font-family':'var(--body)'}, attrs||{}), parent); t.textContent=s; return t; }
+
+  function frame(svg, W, H, xMax, yMin, yMax){
+    var m={l:46,r:14,t:14,b:34};
+    var sx=function(n){ return m.l + (n/xMax)*(W-m.l-m.r); };
+    var sy=function(v){ return m.t + (yMax-v)/(yMax-yMin)*(H-m.t-m.b); };
+    svg.innerHTML='';
+    var g=el('g',{},svg);
+    [1.0,0.9,0.8,0.7,0.6].forEach(function(v){ if(v<yMin||v>yMax) return;
+      el('line',{x1:m.l,x2:W-m.r,y1:sy(v),y2:sy(v),stroke:'var(--rule)','stroke-width':1},g);
+      txt(g, m.l-8, sy(v)+4, Math.round(v*100)+'%', {'text-anchor':'end','font-size':12});
+    });
+    for(var c=0;c<=xMax;c+= (xMax>1300?200:200)){
+      txt(g, sx(c), H-m.b+18, c, {'text-anchor':'middle','font-size':12});
+    }
+    txt(g, W-m.r, H-4, '圈數', {'text-anchor':'end','font-size':12});
+    txt(g, m.l, 10, '健康度 SOH', {'font-size':12});
+    return {g:g, sx:sx, sy:sy, m:m, W:W, H:H};
+  }
+  function pathFor(f, a, b, L, step){ step=step||5; var d=''; for(var n=a;n<=b;n+=step){ d+=(n===a?'M':'L')+f.sx(n).toFixed(1)+','+f.sy(Math.max(sohCurve(n,L),0.5)).toFixed(1); } return d; }
+
+  /* ---------- hero ---------- */
+  var hero=document.getElementById('heroChart');
+  var slider=document.getElementById('nowSlider');
+  var state={now:100, th:0.8};
+  function drawHero(){
+    var f=frame(hero,640,340,1200,0.55,1.03);
+    var g=f.g;
+    el('rect',{x:f.sx(0),y:f.m.t,width:f.sx(100)-f.sx(0),height:f.H-f.m.t-f.m.b,fill:'var(--band)'},g);
+    txt(g, f.sx(4), f.sy(0.62), '前 100 圈', {'font-size':12,fill:'var(--warn)'});
+    var life=lifeAt(state.th);
+    el('line',{x1:f.m.l,x2:f.W-f.m.r,y1:f.sy(state.th),y2:f.sy(state.th),stroke:'var(--eol)','stroke-width':1.5,'stroke-dasharray':'6 5'},g);
+    txt(g, f.W-f.m.r-4, f.sy(state.th)-6, '壽終線 '+Math.round(state.th*100)+'%', {'text-anchor':'end',fill:'var(--eol)','font-size':12});
+    var n=state.now;
+    if(n<1200) el('path',{d:pathFor(f,n,1200),fill:'none',stroke:'var(--future)','stroke-width':2,'stroke-dasharray':'3 5'},g);
+    if(n>0) el('path',{d:pathFor(f,0,n),fill:'none',stroke:'var(--charge)','stroke-width':3,'stroke-linecap':'round'},g);
+    el('line',{x1:f.sx(n),x2:f.sx(n),y1:f.m.t,y2:f.H-f.m.b,stroke:'var(--ink)','stroke-width':1,opacity:.5},g);
+    el('circle',{cx:f.sx(n),cy:f.sy(sohCurve(n)),r:5,fill:'var(--charge)'},g);
+    txt(g, Math.min(f.sx(n)+6, f.W-60), f.m.t+14, '現在', {fill:'var(--ink)','font-size':12});
+    if(life){ el('circle',{cx:f.sx(life),cy:f.sy(state.th),r:5,fill:'var(--surface)',stroke:'var(--eol)','stroke-width':2},g); }
+    document.getElementById('nowLbl').textContent=n;
+    document.getElementById('rSoh').textContent=(sohCurve(n)*100).toFixed(1)+'%';
+    document.getElementById('rLife').textContent='第 '+life+' 圈';
+    document.getElementById('rRul').textContent= n<life ? (life-n)+' 圈' : '已過壽終';
+  }
+  slider.addEventListener('input',function(){ state.now=+slider.value; drawHero(); });
+  document.querySelectorAll('#eolSeg button').forEach(function(b){
+    b.addEventListener('click',function(){
+      state.th=+b.dataset.v;
+      document.querySelectorAll('#eolSeg button').forEach(function(x){ x.setAttribute('aria-pressed', x===b?'true':'false'); });
+      drawHero();
+    });
+  });
+  drawHero();
+
+  /* ---------- tasks ---------- */
+  var tasks={
+    A:{q:'「這顆剛做好的新電池，只測前 100 圈，總共能用幾圈？」',
+       why:'電池廠評估新設計、驗證新產線、研發新的快充方式時最需要它。前 100 圈容量幾乎不變，資訊只藏在曲線形狀的細微變化裡，換化學系統或使用條件就容易失準。',
+       spec:[['輸入','前 1 到 100 圈的完整充放電曲線，有時加溫度、內阻、材料與協議描述'],['輸出','一個數字：壽命圈數'],['訓練答案','很多同類電池測到壽終的紀錄；每顆只貢獻一個答案'],['常見誤差','壽命 MAPE 約 7% 到 50%'],['代表論文','Severson、Attia、Li+、Sours+、BatLiNet、BatteryLife、PBT、Discovery Learning']]},
+    B:{q:'「一樣只看前 100 圈，能不能畫出之後每一圈的健康度？」',
+       why:'A 只告訴你「第 950 圈壽終」；B 還告訴你中間怎麼走，例如何時開始加速衰退。安排保固、維護、退役後改作儲能用時，需要的是整條曲線。',
+       spec:[['輸入','和 A 相同：前 100 圈以內的量測'],['輸出','一條曲線：之後每一圈的健康度，從中讀出膝點與壽終'],['訓練答案','一樣要測到壽終，但每顆提供一整條曲線'],['常見誤差','健康度點的 MAPE 約 1% 到 5%（不能和 A 比）'],['代表論文','Kim+、Nicolae+、BatteryGPT、BatteryMFormer']]},
+    C:{q:'「這顆已經用了一段時間的電池，照它自己的走勢，還能用幾圈？」',
+       why:'A 預測一顆沒看過的新電池；C 看的是同一顆電池自己的過去，像延長一條已經畫了一半的線。已上路的電動車、儲能系統要排維修與更換，就是這個問題。越接近壽終越準，但也越晚才知道。',
+       spec:[['輸入','這顆電池從第 1 圈到現在每一圈的容量'],['輸出','之後每一圈的容量；剩餘壽命 = 壽終那一圈 − 現在'],['訓練答案','其他電池的完整容量軌跡，有時也用這顆電池自己的過去'],['常見誤差','容量誤差（Ah）或剩餘圈數誤差'],['代表論文','Karma、Battery-Timer']]},
+    D:{q:'「這顆電池『現在』還剩多少容量？」',
+       why:'能從滿電完整放到空，容量就直接量到了。但實際使用的電池很少完整充放一次，所以要從一小段充電資料推估。手機和電動車顯示的「電池健康度」、二手電池估價都需要它。答案便宜得多，不必等電池壽終。',
+       spec:[['輸入','一段部分充電或放電的電壓、電流、溫度、時間'],['輸出','一個數字：目前的健康度'],['訓練答案','同一時間點用完整充放電量到的真實健康度'],['常見誤差','健康度誤差，約 1 個百分點'],['代表論文','Li+（Sci. Rep.）、Gong+']]}
+  };
+  var taskSvg=document.getElementById('taskChart');
+  function drawTask(t){
+    var f=frame(taskSvg,640,300,1400,0.55,1.03), g=f.g;
+    [720,1050,1300].forEach(function(L){ el('path',{d:pathFor(f,0,1400,L,7),fill:'none',stroke:'var(--future)','stroke-width':1.5,opacity:.55},g); });
+    el('line',{x1:f.m.l,x2:f.W-f.m.r,y1:f.sy(0.8),y2:f.sy(0.8),stroke:'var(--eol)','stroke-width':1.2,'stroke-dasharray':'6 5'},g);
+    var life=lifeAt(0.8);
+    if(t==='A'||t==='B'){
+      el('rect',{x:f.sx(0),y:f.m.t,width:f.sx(100)-f.sx(0),height:f.H-f.m.t-f.m.b,fill:'var(--band)'},g);
+      el('path',{d:pathFor(f,0,100),fill:'none',stroke:'var(--charge)','stroke-width':3.5},g);
+      txt(g,f.sx(110),f.sy(1.0)+18,'只看得到這裡',{fill:'var(--warn)','font-size':12});
+      if(t==='A'){ el('circle',{cx:f.sx(life),cy:f.sy(0.8),r:7,fill:'var(--surface)',stroke:'var(--eol)','stroke-width':2.5},g);
+        txt(g,f.sx(life),f.sy(0.8)+24,'猜這一點的圈數',{'text-anchor':'middle',fill:'var(--eol)','font-size':12}); }
+      else { el('path',{d:pathFor(f,100,1150),fill:'none',stroke:'var(--eol)','stroke-width':2.5,'stroke-dasharray':'5 4'},g);
+        txt(g,f.sx(820),f.sy(0.92),'猜整條曲線',{fill:'var(--eol)','font-size':12}); }
+    }
+    if(t==='C'){
+      el('path',{d:pathFor(f,0,820),fill:'none',stroke:'var(--charge)','stroke-width':3.5},g);
+      el('path',{d:pathFor(f,820,1150),fill:'none',stroke:'var(--eol)','stroke-width':2.5,'stroke-dasharray':'5 4'},g);
+      el('line',{x1:f.sx(820),x2:f.sx(820),y1:f.m.t,y2:f.H-f.m.b,stroke:'var(--ink)',opacity:.5},g);
+      txt(g,f.sx(820)-6,f.m.t+14,'現在',{'text-anchor':'end',fill:'var(--ink)','font-size':12});
+      var yb=f.sy(0.8)+22; el('line',{x1:f.sx(820),x2:f.sx(life),y1:yb,y2:yb,stroke:'var(--eol)','stroke-width':2},g);
+      txt(g,(f.sx(820)+f.sx(life))/2,yb+16,'剩餘壽命',{'text-anchor':'middle',fill:'var(--eol)','font-size':12});
+    }
+    if(t==='D'){
+      el('path',{d:pathFor(f,0,1150),fill:'none',stroke:'var(--charge)','stroke-width':2,opacity:.35},g);
+      el('rect',{x:f.sx(560),y:f.m.t,width:f.sx(620)-f.sx(560),height:f.H-f.m.t-f.m.b,fill:'var(--charge-soft)'},g);
+      el('circle',{cx:f.sx(590),cy:f.sy(sohCurve(590)),r:7,fill:'var(--charge)'},g);
+      txt(g,f.sx(590),f.sy(sohCurve(590))-14,'現在在哪？',{'text-anchor':'middle',fill:'var(--charge)','font-size':12});
+      txt(g,f.sx(590),f.H-f.m.b-8,'一小段充電資料',{'text-anchor':'middle',fill:'var(--charge)','font-size':12});
+    }
+    var d=tasks[t];
+    document.getElementById('taskQ').textContent=d.q;
+    document.getElementById('taskWhy').textContent=d.why;
+    document.getElementById('taskSpec').innerHTML=d.spec.map(function(r){return '<dt>'+r[0]+'</dt><dd>'+r[1]+'</dd>';}).join('');
+  }
+  document.querySelectorAll('#taskTabs button').forEach(function(b){
+    b.addEventListener('click',function(){
+      document.querySelectorAll('#taskTabs button').forEach(function(x){x.setAttribute('aria-selected', x===b?'true':'false');});
+      drawTask(b.dataset.t);
+    });
+  });
+  drawTask('A');
+
+  /* ---------- papers ---------- */
+  var stages=[
+    {n:'①',title:'2019–2021　證明早期預測可行',desc:'單一型號、同一實驗室的磷酸鐵鋰電池。簡單模型加好特徵就很強，但只在同質資料上成立。'},
+    {n:'②',title:'2023–2024　離開單一資料集',desc:'統一資料格式；發現舊特徵換條件就失效，於是換量法、改學電池間的相對差異。'},
+    {n:'③',title:'2025　大考場與序列模型',desc:'990 顆、16 個資料集的考場上線，帶來壞消息：多樣資料下誤差變大，跨電池種類的遷移幾乎沒用。'},
+    {n:'④',title:'2025–2026　預訓練、整條曲線、物理零樣本',desc:'對上一階段的三種回應，以及現況健康度和大型模型綜述。'}
+  ];
+  var P=[
+  {s:0,name:'Severson 等 2019',meta:'Data-driven prediction of battery cycle life before capacity degradation · Nature Energy 4, 383–391',task:['A'],ck:'摘要',url:'https://doi.org/10.1038/s41560-019-0356-8',
+   plain:'電池看起來還完全健康時，壽命的線索就已經藏在放電曲線的形狀裡。整個早期預測領域的起點。',
+   why:'測一顆電池到壽終要幾個月到一年。如果前 100 圈就看得出它大概能活多久，研發就不必一直等。',
+   how:'把 124 顆同型號電池用 72 種不同的快充方式反覆充放。關鍵特徵叫 ΔQ(V)：把第 100 圈的放電曲線減去第 10 圈的放電曲線，在同樣的電壓點上逐點相減。兩條曲線差得越「不均勻」（變異數越大），電池通常越短命。再用最簡單的線性模型（elastic net）把特徵對應到壽命。',
+   data:'124 顆 A123 磷酸鐵鋰／石墨 18650 電池（1.1 Ah），30°C 恆溫，壽命 150 到 2,300 圈。訓練 41 顆、主要測試 43 顆、次要測試 40 顆。',
+   nums:[['9.1%','用前 100 圈預測壽命的平均百分比誤差（摘要）','論文表格裡找不到這個數；推算是兩個測試集（7.5% 與 10.7%）的平均'],['+0.2%','前 100 圈容量的中位數變化（摘要）','容量甚至還長了一點，肉眼完全看不出老化'],['4.9%','只用前 5 圈，把電池分成長壽、短壽兩組的錯誤率（摘要）','這是分類錯誤率，不是壽命誤差'],['30–36%','永遠猜平均壽命的誤差（依原簡報）','「什麼都沒學」的底線']],
+   care:'全部是同一型號、同一實驗室、同一溫度的磷酸鐵鋰電池。後來的 BatLiNet、Li+、Sours+ 都發現這類特徵換了條件就不靈。',
+   an:'像兩位跑者前 100 公尺速度一樣，但步伐的細微變化已經透露誰會先累。'},
+  {s:0,name:'Attia 等 2020',meta:'Closed-loop optimization of fast-charging protocols for batteries with machine learning · Nature 578, 397–402',task:['A'],ck:'摘要',url:'https://doi.org/10.1038/s41586-020-1994-5',
+   plain:'早期預測的第一個實際用途：當作「便宜的評分員」，快速找出既快又不傷電池的快充方式。',
+   why:'充得越快通常越傷電池。要在 224 種 10 分鐘快充方式裡找最耐用的，如果每種都測到壽終，要 500 天以上。',
+   how:'兩個工具一起用。早期預測：每顆電池只測前 100 圈（約 4 天）就估壽命，縮短每次實驗。貝氏最佳化：根據已測的結果，決定下一輪試哪些充電方式，在「試試新的」和「深挖看起來好的」之間取捨，減少實驗次數。每輪 48 顆並行，共 4 輪。',
+   data:'與 Severson 同型號的磷酸鐵鋰電池。快充方式是在 10 分鐘內從 0% 充到 80%，中間分段、各段電流不同。',
+   nums:[['16 天 vs 500+ 天','找到好協議的時間 vs 不用早期預測、全部測完（摘要）','500 天是估算，沒有真的跑過'],['約 15 倍','驗證實驗中實際比出來的加速（依原簡報）','這才是真正比較過的數字'],['895 vs 728 圈','最佳協議 vs 文獻常用協議實測到壽終的平均壽命（依原簡報）','找到的協議確實比較耐用']],
+   care:'早期預測在驗證電池上傾向高估壽命；最佳解只適用這款電池、這個溫度、0–80% 的充電範圍。',
+   an:'像餐廳試菜：不必每道菜都做成一桌，嘗一口就決定下一道要調哪裡。'},
+  {s:0,name:'Attia、Severson、Witmer 2021',meta:'Statistical learning for accurate and interpretable battery lifetime prediction · J. Electrochem. Soc. · arXiv 2101.01885',task:['A'],ck:'摘要',url:'https://arxiv.org/abs/2101.01885',
+   plain:'同一個團隊回頭檢驗：簡單、看得懂的線性模型，就能和複雜模型打平。',
+   why:'深度學習很流行，但電池資料往往只有幾十到幾百顆。作者想提供一個訓練只要幾分鐘的強基線，讓之後的新方法有公平的比較對象。',
+   how:'提出「容量矩陣」：把多圈的電壓–容量資料壓成一張小表，再從中取特徵。比較只用一個特徵的模型、多變量線性模型（PLSR）和卷積神經網路（CNN）。',
+   data:'就是 Severson 的 124 顆，用同樣的切分。',
+   nums:[['124 圈','只用一個特徵（四分位距 IQR）的模型，主要測試集 RMSE（依原簡報）','一個數字就做到這樣，說明特徵比模型重要'],['17／72／204 圈','CNN 在訓練／主要測試／次要測試的 RMSE（依原簡報）','訓練誤差極小、次要測試最差，典型的過擬合']],
+   care:'只報 RMSE（圈），沒有百分比，不能直接和 9.1% 比；論文自己的表也顯示 Severson 的模型測試誤差仍是最低。'},
+  {s:1,name:'BatteryML 2023',meta:'BatteryML: An Open-source Platform for Machine Learning on Battery Degradation · ICLR 2024 · arXiv 2310.14714',task:['X'],ck:'摘要',url:'https://arxiv.org/abs/2310.14714',
+   plain:'不是新模型，而是一個統一格式的工具箱，讓不同方法能在同一套資料上公平比較。',
+   why:'每個公開電池資料集的欄位、單位、檔案格式都不同。做機器學習的人不懂電池，做電池的人不熟深度學習，結果大家各比各的。',
+   how:'把 7 個公開資料集（CALCE、MATR、HUST、HNEI、RWTH、SNL、UL_PUR）整理成同一種格式：每顆電池一個物件，裡面是一圈一圈的時間、電壓、電流、容量、溫度。內建 Severson 的特徵和多種模型，一行指令就能重跑基線。',
+   data:'約 380 到 400 顆電池（不同版本計數不同），涵蓋 LFP、NMC、NCA、LCO 等化學系統。出自 Microsoft 團隊，和 BatLiNet 同團隊。',
+   nums:[],
+   care:'主要處理壽命標籤（跌破 80% 的那一圈）；健康度只有佔位用的模型。原簡報指出 GitHub repo 已於 2026 年 9 月封存。'},
+  {s:1,name:'Li 等 2024（Li+）',meta:'Predicting battery lifetime under varying usage conditions from early aging data · Cell Reports Physical Science 5(4) · arXiv 2307.08382',task:['A'],ck:'摘要',url:'https://arxiv.org/abs/2307.08382',
+   plain:'電池的用法各不相同（充多快、放多深）時，改用「定期健檢」的資料來做早期預測。',
+   why:'Severson 的電池每次都充飽再放光。真實世界常常只用一點電就再充，這種淺充淺放的電池，平常的曲線看不到完整形狀。',
+   how:'每週固定插入參考性能測試（RPT）：用慢速把電池完整充放一次，像定期健檢。即使平常只放 4% 的電，也能量到完整曲線。從前 3 週的健檢資料取特徵（dQ/dV 曲線在 3.60–3.90 V 的變化，反映電極內部的老化），再用線性模型和階層貝氏模型預測。',
+   data:'自建並公開 225 顆鎳錳鈷／石墨小軟包電池（250 mAh），充放電 0.5C 到 3C、放電深度 4% 到 100%。',
+   nums:[['15.1%','和訓練資料同類用法的電池，壽命 MAPE（摘要）','大多只用了前 15% 的壽命資料'],['21.8%','訓練沒看過的淺放電用法，階層貝氏模型（摘要）','外推時誤差變大；elastic net 是 33.0%（依原簡報）'],['23.7%','完全不量電池、只看使用條件的模型（依原簡報）','外推時，量測特徵不一定比「知道它怎麼被用」有用']],
+   care:'需要另外排程健檢，現場不一定做得到；壽命單位是「週」。',
+   an:'像定期健康檢查：平常看不出問題，固定時間做同一套體檢就能比較。'},
+  {s:1,name:'Sours 等 2024（Sours+）',meta:'Early-Cycle Current Pulses Enable ML-Based Battery Cycle Life Predictions Across Manufacturers · arXiv 2410.05326',task:['A'],ck:'摘要',url:'https://arxiv.org/abs/2410.05326',
+   plain:'多量一種物理訊號──內阻──讓壽命預測換了廠牌也還能用。',
+   why:'只看電壓–容量曲線的特徵，換一家廠商就失效，因為每家的電極配方、製程、外型都不同。',
+   how:'在第 2 圈和第 102 圈做「脈衝體檢」：在電量 100%、90%…10% 各打一個 10 秒的電流脈衝，看電壓掉多少，用「電壓降 ÷ 電流」算出直流內阻（DCIR）。內阻像電池內部的摩擦力，老化時會變大。再比較「只用曲線特徵」與「加入內阻特徵」的差別。',
+   data:'57 顆商用電池、3 個廠牌（Samsung、BAK、LG），都是鎳系正極加石墨負極；23、40、60°C。SandboxAQ 與 NOVONIX 合作，資料公開。',
+   nums:[['150 圈','v1 摘要：對沒看過的廠牌的 MAE','壽命範圍約 700 到 2,400 圈'],['105／160／230 圈','v2：留一廠牌，壽終線 90／85／80%（依原簡報）','壽終線越低、要預測越遠，誤差越大'],['400+ → 約 100 圈','留一操作條件：只用曲線特徵 vs 加入內阻（依原簡報）','加入內阻後誤差剩約四分之一']],
+   care:'只有 57 顆，沒有獨立保留的測試集；三個廠牌都是鎳系，沒驗證磷酸鐵鋰。',
+   an:'判斷一台車的狀況，除了看油耗，也去量引擎的阻力。'},
+  {s:1,name:'BatLiNet（Zhang 等 2023／2025）',meta:'Battery lifetime prediction across diverse ageing conditions with inter-cell deep learning · Nature Machine Intelligence 7, 270–277 · arXiv 2310.05052（arXiv 標題為 Accurate battery lifetime prediction across diverse aging conditions with deep learning）',task:['A'],ck:'全文',url:'https://arxiv.org/abs/2310.05052',
+   plain:'與其直接猜一顆電池的壽命，不如猜它和一顆已知壽命的電池「差多少」。',
+   why:'把很多種電池（不同材料、充放電方式）混在一起時，為磷酸鐵鋰設計的特徵和壽命的關係變得很散。新材料常常只有幾顆電池可以學。',
+   how:'把每一圈的充、放電電壓和電流，用「充了多少電」當橫軸重新對齊，排成 6 張像圖片一樣的特徵圖，交給卷積神經網路。兩條分支共用最後一層。單顆分支看這顆電池第 N 圈和第 10 圈的差（Severson 的想法）；跨電池分支看這顆電池和一顆已知壽命的「參考電池」在同一圈的差，預測兩者壽命差多少，再加回參考電池的壽命。推論時隨機挑 32 顆參考電池，取中位數。模型學的是相對差異，比較不怕條件換來換去。',
+   data:'整合 9 個公開來源：401 顆、5 種電極材料、168 種循環條件。重點測試集 MIX-100 有 342 顆（205 顆訓練、137 顆測試）。Microsoft Research 與清華、Stanford 合作。',
+   nums:[['10%（158 圈）','MIX-100：混合電池、用前 100 圈預測到 80%（表 1）','最強對照隨機森林 14%（211 圈）；永遠猜平均 59%'],['47%','同一份資料上，Severson 的 discharge 模型（表 1）','在單一型號上只有 8%，混在一起就失靈，證明舊特徵不泛化'],['18% vs 31%','MIX-20：只給前 20 圈、預測到 90%，BatLiNet vs 隨機森林（表 1）','可用資料越少，優勢越大'],['6% 與 11%','Severson 資料：看過／沒看過的充電方式（表 1）','沒看過時和 Severson、Ridge、PLSR 等都是 11%，沒有贏'],['20.26%','新正極材料只給 2 到 8 顆電池，加上 275 顆磷酸鐵鋰舊資料（正文）','先用磷酸鐵鋰預訓練再微調，反而讓 LCO、NMC 變差；BatLiNet 則三種都改善']],
+   care:'推論時一定要有已知壽命的參考電池，而且參考電池挑得好不好差很多：最差與最佳的參考，單顆誤差可差超過 1,500 圈（作者自己的分析）。數字取自 arXiv v3，正式版可能不同。',
+   an:'不知道一個人幾歲時，拿他和一位已知年齡的人比「誰看起來老、老多少」。'},
+  {s:1,name:'Kim 等 2023（Kim+）',meta:'Model-free reconstruction of capacity degradation trajectory of lithium-ion batteries using early cycle data · eTransportation 17 · arXiv 2303.18195',task:['B'],ck:'摘要',url:'https://arxiv.org/abs/2303.18195',
+   plain:'不直接畫整條曲線，只預測幾個「關鍵點」，再把點連成線。',
+   why:'一步一步往後推的方法，誤差會一路累積。作者想用很早期的資料，一次給出整條衰退軌跡。',
+   how:'先決定 2 到 4 個節點，例如健康度掉到 89% 和 80% 的那兩圈。用卷積神經網路，只看第 1 圈的電壓、電流、時間，同時預測這些節點落在第幾圈，再用單調內插連起來。節點的位置可以平均分配，也可以用貝氏最佳化找。',
+   data:'169 顆磷酸鐵鋰電池（Severson 加 Attia 2020 的電池），五折交叉驗證；另外 82 顆電池驗證不同形狀的曲線。',
+   nums:[['< 1.60%','整條軌跡上容量的 MAPE（摘要）','容量本身變化範圍小，誤差百分比天生小'],['約 10–16%','節點（例如壽終那一圈）的圈數誤差（依原簡報）','這才是壽命層級的誤差，和任務 A 同級'],['3 圈','作者建議的輸入長度（摘要）','比只用 1 圈更不怕雜訊']],
+   care:'整條軌跡沒有和其他方法比較；1.5% 的軌跡誤差不能拿去跟任務 A 的壽命誤差比。'},
+  {s:2,name:'BatteryLife（Tan 等 2025）',meta:'BatteryLife: A Comprehensive Dataset and Benchmark for Battery Life Prediction · KDD 2025 · arXiv 2502.18807',task:['A','X'],ck:'全文',url:'https://arxiv.org/abs/2502.18807',
+   plain:'建了一個大考場，結果發現：資料一多樣，最好的模型也有約 18% 誤差；鋰電池學到的東西幾乎幫不了別種電池。',
+   why:'之前的研究各用各的資料、各比各的，多數公開資料只有實驗室的小鋰電池。也沒人知道天氣、交通預測裡流行的時間序列模型，用在電池上好不好。',
+   how:'整合 16 個資料集，照 BatteryML 的格式整理，並首度公開鋅離子、鈉離子電池，以及電池廠中創新航（CALB）的工業大電芯資料。每圈的充、放電各重新取樣成 150 點。提出 CyclePatch：把「每一圈」當成一個 token，先學一圈之內的變化，再學圈與圈之間的變化。和 18 種方法比較，每個領域隨機 6:2:2 切分、跑三次。',
+   data:'990 顆電池（arXiv v7），分四個領域：鋰離子 837 顆、鋅離子 95 顆、鈉離子 31 顆、CALB 27 顆。',
+   nums:[['17.9%','鋰離子最佳模型 CPMLP 的壽命 MAPE（表 3）','真實 1,000 圈平均偏差約 180 圈；62% 的預測誤差在 15% 內'],['83.1%','永遠猜平均的誤差（表 3）','17.9% 是相對這條底線的進步'],['51.5%／25.5%／14.0%','鋅／鈉／CALB 的最佳 MAPE（表 3）','鋅電池化學系統多、每種資料少，常常差一半'],['315% 與 411%','鋰電池模型直接拿去預測鋅、鈉電池（表 6，依原簡報）','等於沒用；微調救回來，但仍略輸只用目標資料從頭訓練']],
+   care:'MAPE 對所有樣本平均，一顆電池會因不同輸入圈數被算很多次；隨機切分。還沒跌到壽終線的電池：差超過 2.5 個百分點就排除，差一點就線性外推。',
+   an:'像第一次把各校考卷收齊、統一閱卷，才發現原本各校的高分不能互比。'},
+  {s:2,name:'BatteryGPT（Hu 等 2025）',meta:'Early prediction of lithium-ion battery degradation with a generative pre-trained transformer · Nature Communications 17',task:['B'],ck:'摘要',url:'https://doi.org/10.1038/s41467-025-66819-0',
+   plain:'像 GPT 寫文章一樣，把之後每一圈的充電資料「續寫」出來，再從中讀出健康度。',
+   why:'不只想知道哪一圈壽終，還想知道整段過程：每圈的健康度、何時開始加速衰退。',
+   how:'兩步驟。第一步，GPT 模型一步一步生成未來整個生命週期的充電資料；第二步，另一個模型把生成的充電資料轉成健康度。',
+   data:'Severson 資料中的 46 顆磷酸鐵鋰電池（依原簡報：42 顆訓練、4 顆測試）。',
+   nums:[['RMSE 0.213%','看了前 30% 壽命後，健康度軌跡的誤差（摘要）','平均偏差約 0.2 個百分點'],['2.30%／1.18%','膝點、壽終那一圈的 MAPE（摘要）','非常準，但前提是已看了 30% 壽命'],['前 5%','只看前 5% 壽命時（摘要稱仍有不錯表現）','原簡報指出此時膝點誤差升到約 31%']],
+   care:'「前 30% 壽命」要先知道總壽命才算得出是幾圈，實際使用時做不到；測試只有 4 顆。2026 綜述提到的同名 BatteryGPT 是另一篇。'},
+  {s:2,name:'Nicolae 等 2025（Nicolae+）',meta:'Optimizing Cycle Life Prediction of Lithium-ion Batteries via a Physics-Informed Model · TMLR 2025 · arXiv 2404.17174',task:['A','B'],ck:'摘要',url:'https://arxiv.org/abs/2404.17174',
+   plain:'不直接猜壽命，而是猜「描述容量損失曲線的公式」裡的兩個參數。',
+   why:'只給一個壽命數字的話，換了壽終定義（例如從 80% 改成 90%）就得重新訓練。給出整條曲線就沒這個問題。',
+   how:'先用一條有物理依據的公式（以 Arrhenius 定律為基礎）去擬合每顆電池的容量損失曲線，得到參數 A、B。再用自注意力模型，從前 100 圈的 5 個手工特徵預測 A、B，就能畫出整條曲線、讀出任何閾值下的壽命。',
+   data:'Severson 的 124 顆，沿用原本的切分。',
+   nums:[['128／180 圈','主要／次要測試集的壽命 RMSE（依原簡報）','Severson 是 118／214：一個較差、一個較好，大致相當']],
+   care:'「換壽終定義不必重訓」是作者主張，論文只驗證了 80%。'},
+  {s:2,name:'Karma（Pamshetti 等 2025）',meta:'Knowledge-Aware Modeling with Frequency Adaptive Learning for Battery Health Prognostics · arXiv 2510.02839',task:['C'],ck:'摘要',url:'https://arxiv.org/abs/2510.02839',
+   plain:'已經在用的電池，照它自己到目前的走勢，再加一條經驗公式，推估還能用多久。',
+   why:'純資料驅動的模型往後預測久了容易「飄掉」，畫出物理上不合理的曲線。',
+   how:'先把容量序列拆成慢變的長期趨勢和快變的短期波動，兩條分支各自處理（CNN-LSTM 與 BiGRU）。再假設衰退大致符合「雙指數函數」這條經驗公式，用粒子濾波調整公式參數，讓預測保持合理，並給出不確定性範圍。',
+   data:'NASA（4 顆 18650）與 CALCE（4 顆鈷酸鋰／石墨）兩個經典小資料集。',
+   nums:[['降 50.6%／32.6%','NASA／CALCE 上，相對比較方法的平均 MAE 降幅（結論段寫明是 MAE）','是對多個對照的平均；只看最強的一個對照，改善小很多（依原簡報約 32%／12%）'],['0–7 圈','預測剩餘壽命與真實值的差（依原簡報）','很準，但同一顆電池預測起點前的資料已用來訓練']],
+   care:'每個資料集只有 4 顆；對照組數字引用自各篇文獻，預測起點不一定相同。'},
+  {s:2,name:'Battery-Timer（Chan 等 2025）',meta:'Foundation Models Knowledge Distillation For Battery Capacity Degradation Forecast · Reliability Engineering & System Safety 270 · arXiv 2505.08151',task:['C'],ck:'全文',url:'https://arxiv.org/abs/2505.08151',
+   plain:'把通用的時間序列大模型改造成電池容量預測器，再把本事「教」給能放進電池管理系統的小模型。',
+   why:'時間序列大模型會預測各種序列，但沒專門學過電池；而且太大，放不進電池管理系統的小晶片。',
+   how:'拿清華大學的時間序列大模型 Timer（8,400 萬參數），用 LoRA 只訓練約 1.3% 的附加參數，在約 10 GB 公開充放電資料上微調；損失函數多加一項懲罰，讓預測的容量傾向往下走。再用知識蒸餾：小模型同時學真實答案和大模型的預測。輸入 96 步容量，預測接下來 96 步。',
+   data:'微調用 4 個公開資料集（Severson、CALCE、Sandia、溫州 60 輛電動巴士）。測試用自建的 8 顆國軒高科磷酸鐵鋰 13 Ah 圓柱電池：4 顆定電流充電、4 顆定電流加定電壓充電。上海交通大學。',
+   nums:[['RMSE 0.078 → 0.021','第 1 顆電池：原始 Timer vs 微調後（表 4）','微調確實有幫助'],['96 步','模型能可靠預測的長度（第 5 節）','作者自己承認，要求預測超過 96 步，後段就不可信']],
+   care:'只測 8 顆、同一型號；直接訓練的專用模型誤差和它差不多（依原簡報）。',
+   an:'教授（大模型）先進修電池課，再把重點整理給助教（小模型），由助教到現場上班。'},
+  {s:3,name:'PBT（Tan 等 2025／2026）',meta:'Pretrained battery transformer (PBT): A foundation model for battery life prediction · Energy & Environmental Science · arXiv 2512.16334',task:['A'],ck:'摘要',url:'https://arxiv.org/abs/2512.16334',
+   plain:'第一個電池壽命的「基礎模型」：先用很多種電池預訓練，並告訴模型「這是什麼電池」，再用少量新資料調成專用版。',
+   why:'BatteryLife 證明：把一種電池學到的東西直接搬到另一種，幾乎沒用。',
+   how:'把 10 個老化條件（材料、規格、廠牌、充放電協議、溫度等）寫成文字，交給凍結不動的 Llama-3.1-8B 轉成向量，當作「電池身分證」。核心是混合專家層：裡面有多個專家子網路，由身分證決定要找哪幾位，並用電池知識排除明顯不相干的專家。',
+   data:'預訓練：13 個鋰電池資料集。下游：15 個資料集、977 顆、532 種條件，涵蓋鋰、鈉、鋅電池（正式版摘要）。',
+   nums:[['平均好 19.8%','arXiv 第一版摘要，相對現有模型','早期版本的數字'],['平均好 24.8%，最多 73.9%','正式版摘要，15 個下游資料集相對最強對照','「好 X%」是相對降幅'],['42.1／19.0／31.3%','預訓練沒看過的工業鋰、鈉、鋅資料集上的降幅（依原簡報）','只有這三個是真正的新資料，提升最可信']],
+   care:'專門化仍需目標電池的壽命標籤；「未見條件」只要 10 個因子的組合沒出現過就算，差一個因子也算，不等於全新化學系統。',
+   an:'醫生看診時先問清楚年紀、職業、病史，再看症狀，判斷會準很多。'},
+  {s:3,name:'BatteryMFormer（Tan 等 2026）',meta:'BatteryMFormer: Multi-level Learning for Battery Degradation Trajectory Forecasting · KDD 2026 · arXiv 2605.27044',task:['B'],ck:'摘要',url:'https://arxiv.org/abs/2605.27044',
+   plain:'只看前 100 圈，畫出整條健康度曲線一路到壽終；同時從「時間」和「電量區間」兩個角度看資料。',
+   why:'早期健康度幾乎一樣的電池，後來的路可能差很多，所以要看電壓、電流的細節曲線。而且老化的跡象常集中在某個電量區間。',
+   how:'三個零件。雙視角編碼器：時間視角把每圈當一個 token；電量視角看同一個電量區間在各圈之間怎麼變化。記憶庫：記住幾種典型的衰退形狀，預測時拿出來參考。老化條件解碼器：像 PBT 一樣把老化條件寫成文字當提示。',
+   data:'BatteryLife 的四個領域；切分時讓測試電池的老化條件都沒在訓練中出現。',
+   nums:[['約 1.0–5.0%','四個領域的健康度點 MAPE（依原簡報）','這是每一圈健康度的誤差，不是壽命誤差'],['好約 11%','鋰離子上相對第二名（依原簡報）','絕對差距只有約 0.3 個百分點'],['8.7%','只看健康度歷史的通用模型 TimesFM（依原簡報）','表現最差之一，支持「只看健康度不夠」']],
+   care:'論文沒寫清楚 MAPE 是按每一點還是每顆電池平均；全是實驗室資料，作者把現場資料列為未來工作。'},
+  {s:3,name:'Discovery Learning（Zhang 等 2025／2026）',meta:'Discovery Learning predicts battery cycle life from minimal experiments · Nature 2026 · arXiv 2508.06985（arXiv 標題為 Discovery Learning accelerates battery design evaluation）',task:['A'],ck:'全文',url:'https://arxiv.org/abs/2508.06985',
+   plain:'唯一不需要新設計壽命標籤的路線：用物理模型當橋，讓舊的小電池資料預測新的大電池。',
+   why:'其他方法都要先把新設計做出來、測到壽終才有標籤可學。評估一個新電池設計，往往要好幾年。',
+   how:'靈感來自教育心理學的「發現式學習」，三個角色輪流。Interpreter（翻譯者）：用物理模型 PyBaMM 加「模擬推論」技術，從前 50 個等效完整循環的充放電曲線，反推出 14 個電化學參數（例如電極裡鋰擴散多快、負極保護膜的阻抗），取第 1 圈的值和 50 圈內的變化，共 28 個「物理特徵」。不管電池大小、廠牌，都能換算成同一套特徵。Oracle（先知）：只用舊的公開小電池資料，學「物理特徵 → 壽命」；它有兩層，基礎層是 elastic net 線性模型，上面再用一個模型學「不同溫度、充放電速度下，哪些特徵比較重要」。Learner（學習者）：用高斯過程模型，挑出哪些設計值得先做原型給 Oracle 預測，剩下沒做原型的群組，就只靠溫度和充放電速度，從 Oracle 的預測學著推。',
+   data:'測試：Farasis Energy（孚能科技美國分公司）提供的 123 顆 73–84 Ah 工業大軟包電池，正極為 NMC811 或超高鎳混合，負極為石墨或含 10% 矽的矽碳；8 種電池類型、37 個群組（同類型、同條件的重複電池為一組），壽命 250 到 1,700 圈，測試含模擬電動車行駛的動態放電。訓練：只用 3 款公開小圓柱電池（A123-M1A、LG-HG2、Sony-VTC5A，1.1–3.5 Ah）。密西根大學、新加坡國立大學與 Farasis 合作。',
+   nums:[['7.2%（91 圈）','37 個群組平均壽命的 MAPE（RMSE），完整流程','由兩部分組成：做了原型的 26 組 7.1%（56 圈）；沒做原型、只靠條件推論的 11 組 7.4%（142 圈）'],['6.4%／9.1%','所有群組都做原型、只用 Oracle 時：群組層級／單顆電池層級','單顆電池也只有 9.1%，說明群組結果不是靠平均湊出來的'],['1,333 → 33 天','時間比較（方法段）','假設每顆壽命 1,000 圈、1C 一圈 2 小時、一次測 8 顆推算，不是實測'],['8.523 → 0.468 MWh','能源比較（製造加測試）','另一組假設（2C、一次測 4 組）是 420 → 14 天、3.023 → 0.356 MWh，只省約 88% 能源']],
+   care:'預測的是一群相同電池的平均壽命；壽終線是初始容量的 90%，比常見的 80% 早；需要物理模型和已知的設計參數（電極厚度、顆粒大小、孔隙率）。公開小電池的衰退多半是直線或越來越慢，這批大電池多半是先直線再加速，有些前期容量甚至上升，差異很大，這正是它厲害的地方。資料與程式碼寫明「正式出版後公開」。',
+   an:'資深工程師看新車設計圖：還沒開過，但從引擎結構和材料就推得出大概能跑多久。'},
+  {s:3,name:'Gong 等 2026（Gong+）',meta:'Generalized foundation model for lithium-ion battery state-of-health prediction with distribution metric learning · Journal of Energy Storage 150',task:['D'],ck:'未取得',url:'https://doi.org/10.1016/j.est.2026.120566',
+   plain:'把「基礎模型」一詞用在估計現況健康度，想在標註很少時跨資料集使用。',
+   why:'不同資料集的電池、量測條件差很多，標註又少。',
+   how:'依原簡報讀到的摘要：用最大平均差異（MMD）把不同資料集的特徵分布拉近，模型混合 ResNet 與 Transformer，最後接 KAN。',
+   data:'未能確認。',
+   nums:[],
+   care:'這次沒有取得全文或摘要，以上全部依原簡報。MMD 這類領域適應，在 BatteryLife 的跨域實驗中效果較差，但任務不同，無法直接判斷。'},
+  {s:3,name:'Li 等 2026（Li+，Sci. Rep.）',meta:'Transfer learning-based SOH estimation from partial charging data with polarization-aware modeling · Scientific Reports 16, 23076',task:['D'],ck:'摘要',url:'https://doi.org/10.1038/s41598-026-48906-4',
+   plain:'只拿到一小段充電資料、也不知道電池之前被怎麼用，估計它現在的健康度。',
+   why:'真實電池很少從空充到滿，每次充電的起點、長度、電流都不同；電池剛被怎麼用過會殘留「極化」，影響電壓讀數。',
+   how:'先讓 LSTM 練習「預測下一步的電壓」。作者的假設是：要把電壓預測準，模型必須學會記住電池內部的極化狀態，這對估健康度也有用。練好後換掉輸出層，微調成預測健康度。',
+   data:'Severson 的 124 顆（1.1 Ah）；輸入是長度為標示容量 20% 的充電片段，起點在 0% 到 50% 之間變動。',
+   nums:[['MAE 1.75% → 0.91%','直接訓練 LSTM vs 先練電壓再微調（摘要）','健康度百分點的誤差；RMSE 2.35% → 1.30%']],
+   care:'這裡的「遷移學習」是換任務，不是換電池型號；固定切分，沒有交叉驗證。'},
+  {s:3,name:'大型模型綜述（Liu 等 2026）',meta:'Large Models for Battery Prognostics and Health Management: A Review and Future Roadmap · Renewable and Sustainable Energy Reviews · arXiv 2608.26111',task:['X'],ck:'摘要',url:'https://arxiv.org/abs/2608.26111',
+   plain:'整理大型模型（LLM、時間序列大模型等）在電池健康管理的應用，並提出路線圖。沒有自己的模型或實驗。',
+   why:'傳統方法有四個老問題：計算與參數設定、跨領域泛化、需要大量測到壽終的標籤、可解釋性。',
+   how:'先介紹 Transformer、自監督學習、大型多模態資料集、參數高效微調，再整理各種應用，最後提出開放資料、分層驗證、物理引導、聯邦學習、蒸餾部署等路線。',
+   data:'—',
+   nums:[],
+   care:'依原簡報：沒有引用 PBT、BatLiNet、Battery-Timer、Discovery Learning、BatteryMFormer；作者坦承沒有在相同資料量下和調校好的專用模型對照，不知道通用模型從什麼時候開始勝出。'}
+  ];
+
+  var taskName={A:'任務 A 早期壽命',B:'任務 B 早期軌跡',C:'任務 C 歷史外推',D:'任務 D 現況',X:'基準／綜述'};
+  var ckClass={'全文':'ck-full','摘要':'','未取得':'ck-none'};
+  var host=document.getElementById('stages');
+  stages.forEach(function(st,i){
+    var wrap=document.createElement('div'); wrap.className='stage';
+    wrap.innerHTML='<div class="stage-head"><span class="sn">'+st.n+'</span><h3>'+st.title+'</h3><p>'+st.desc+'</p></div>';
+    P.filter(function(p){return p.s===i;}).forEach(function(p){
+      var a=document.createElement('article'); a.className='paper'; a.dataset.task=p.task.join(' ');
+      var nums=p.nums.length? '<h5>數字怎麼讀</h5><div class="nums">'+p.nums.map(function(r){return '<div><b>'+r[0]+'</b><span>'+r[1]+'</span><span class="read">'+r[2]+'</span></div>';}).join('')+'</div>' : '';
+      a.innerHTML='<details><summary>'+
+        '<div class="p-name">'+p.name+'</div><div class="p-meta">'+p.meta+'</div>'+
+        '<p class="p-plain">'+p.plain+'</p>'+
+        '<div class="tags">'+p.task.map(function(t){return '<span class="tag t">'+taskName[t]+'</span>';}).join('')+'<span class="tag '+ckClass[p.ck]+'">已讀：'+p.ck+'</span></div>'+
+        '</summary><div class="p-body">'+
+        '<h5>想解決什麼</h5><p>'+p.why+'</p>'+
+        '<h5>怎麼做</h5><p>'+p.how+'</p>'+
+        (p.an?'<div class="analogy"><b>比喻</b>　'+p.an+'</div>':'')+
+        '<h5>用了什麼資料</h5><p>'+p.data+'</p>'+ nums +
+        '<div class="care"><b>要小心：</b>'+p.care+'</div>'+
+        '<p class="src">原文：<a href="'+p.url+'" target="_blank" rel="noopener">'+p.url.replace('https://','')+'</a></p>'+
+        '</div></details>';
+      wrap.appendChild(a);
+    });
+    host.appendChild(wrap);
+  });
+  var tb=document.querySelector('#srcTable tbody');
+  P.forEach(function(p){ var tr=document.createElement('tr');
+    tr.innerHTML='<td>'+p.name+'</td><td>'+p.ck+'</td><td><a href="'+p.url+'" target="_blank" rel="noopener">'+p.url.replace('https://','')+'</a></td>'; tb.appendChild(tr); });
+
+  document.querySelectorAll('#filter button').forEach(function(b){
+    b.addEventListener('click',function(){
+      var f=b.dataset.f;
+      document.querySelectorAll('#filter button').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false');});
+      document.querySelectorAll('.paper').forEach(function(a){ a.classList.toggle('hide', f!=='all' && a.dataset.task.split(' ').indexOf(f)<0); });
+      document.querySelectorAll('.stage').forEach(function(s){ s.style.display = s.querySelectorAll('.paper:not(.hide)').length ? '' : 'none'; });
+    });
+  });
+
+  /* toc highlight */
+  var links=[].slice.call(document.querySelectorAll('#tocList a'));
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){ links.forEach(function(l){ l.classList.toggle('on', l.getAttribute('href')==='#'+e.target.id); }); } }); },{rootMargin:'-30% 0px -60% 0px'});
+    document.querySelectorAll('section.chap').forEach(function(s){io.observe(s);});
+  }
+})();
+</script>
+</body>
+</html>
